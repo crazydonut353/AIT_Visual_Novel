@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Novel Engine</title>
+    <style>
+        :root {
+            --ui-bg: rgba(20, 20, 20, 0.9);
+            --text-color: #eee;
+            --accent: #00aaff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            cursor: pointer;
+        }
+
+        #bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease-in-out;
+        }
+
+        #chars {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        .character {
+            position: absolute;
+            bottom: 0;
+            max-height: 95%;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+        }
+
+        #ui-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            background: var(--ui-bg);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            box-sizing: border-box;
+            min-height: 150px;
+        }
+
+        #speaker {
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #text {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            min-height: 3em;
+        }
+
+        #choices {
+            display: none;
+            position: absolute;
+            /* Anchor to the bottom, just above the UI layer */
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+    max-width: 600px;
+    z-index: 10;
+}
+
+.choice-btn {
+    display: block;
+    width: 100%;
+    margin: 10px 0; /* Spacing between buttons */
+    padding: 15px;
+    background: var(--ui-bg);
+    border: 1px solid var(--accent);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.2s;
+    border-radius: 4px;
+}
+
+.choice-btn:hover {
+    background: var(--accent);
+    color: black;
+    transform: scale(1.02); /* Slight pop effect on hover */
+}
+    </style>
+</head>
+<body>
+
+<div id="game-container" onclick="game.next()">
+    <div id="bg"></div>
+    <div id="chars"></div>
+
+    <div id="choices"></div>
+
+    <div id="ui-layer">
+        <div id="speaker"></div>
+        <div id="text">Loading story...</div>
+    </div>
+</div>
+
+<script>
+const game = {
+    story: null,
+    assets: null,
+    state: {},
+    currentNode: null,
+    stepIndex: 0,
+    currentMusicId: null,
+    bgm: new Audio(),       // Dedicated for background music
+    sfx: new Audio(),       // Dedicated for voice lines/SFX
+
+    async init() {
+        try {
+            const response = await fetch("story.json");
+            this.story = await response.json();
+            this.assets = this.story.assets;
+            this.state = { ...this.story.state };
+
+            this.bgm.loop = true;
+
+            // Start screen or initial message to force user interaction
+            this.updateUI("", "Click anywhere to begin...");
+        } catch (err) {
+            document.getElementById('text').innerText = "Error: story.json not found or invalid.";
+            console.error(err);
+        }
+    },
+
+    loadNode(nodeId) {
+        if (!this.story.nodes[nodeId]) {
+            console.error(`Node ${nodeId} not found`);
+            return;
+        }
+        this.currentNode = this.story.nodes[nodeId];
+        this.stepIndex = 0;
+        this.renderStep();
+    },
+
+    next() {
+        // If story hasn't started yet (first click)
+        if (!this.currentNode) {
+            this.loadNode(this.story.start);
+            return;
+        }
+
+        if (document.getElementById('choices').style.display === 'block') return;
+
+        this.stepIndex++;
+        if (this.stepIndex < this.currentNode.steps.length) {
+            this.renderStep();
+        } else {
+            // Handle node branching if 'next' property exists on node level
+            if (this.currentNode.next) {
+                this.loadNode(this.currentNode.next);
+            }
+        }
+    },
+
+    renderStep() {
+        const step = this.currentNode.steps[this.stepIndex];
+        if (!step) return;
+
+        document.getElementById('choices').style.display = 'none';
+
+        // Check for line-specific audio (voice)
+        if (step.audio) {
+            this.playVoice(step.audio);
+        }
+
+        switch (step.type) {
+            case "text":
+                this.updateUI(step.speaker || "", step.content);
+                break;
+            case "media":
+                this.handleMedia(step);
+                this.next();
+                break;
+            case "choice":
+                this.showChoices(step.choices);
+                break;
+            case "end":
+                this.updateUI("", "--- FIN ---");
+                break;
+        }
+    },
+
+    updateUI(speaker, content) {
+        document.getElementById('speaker').innerText = speaker;
+        document.getElementById('text').innerText = content;
+    },
+
+    playVoice(audioKey) {
+        const path = this.assets.audio[audioKey]; // Assumes "audio" category in assets
+        if (path) {
+            this.sfx.src = path;
+            this.sfx.play().catch(e => console.warn("Voice play blocked or failed", e));
+        }
+    },
+
+    handleMedia(step) {
+        // Background
+        if (step.background) {
+            const path = this.assets.backgrounds[step.background];
+            document.getElementById('bg').style.backgroundImage = `url('${path}')`;
+        }
+
+        // Music (BGM)
+        if (step.music !== undefined) {
+            if (step.music === "stop") {
+                this.bgm.pause();
+                this.currentMusicId = null;
+            } else if (step.music && step.music !== this.currentMusicId) {
+                const path = this.assets.music[step.music];
+                this.bgm.src = path;
+                this.bgm.play().catch(e => console.warn("BGM play blocked. User must click first.", e));
+                this.currentMusicId = step.music;
+            }
+        }
+
+        // Characters
+        if (step.characters) {
+            const charLayer = document.getElementById('chars');
+            for (let id in step.characters) {
+                const charData = step.characters[id];
+                let el = document.getElementById("char_" + id);
+
+                if (charData.sprite === "none") {
+                    if (el) el.remove();
+                    continue;
+                }
+
+                if (!el) {
+                    el = document.createElement("img");
+                    el.id = "char_" + id;
+                    el.className = "character";
+                    charLayer.appendChild(el);
+                }
+
+                el.src = this.assets.sprites[charData.sprite];
+                const posMap = { left: "20%", center: "50%", right: "80%" };
+                el.style.left = posMap[charData.position] || "50%";
+                el.style.transform = "translateX(-50%)";
+            }
+        }
+    },
+
+    showChoices(choices) {
+        const container = document.getElementById('choices');
+        container.innerHTML = "";
+        container.style.display = "block";
+
+        choices.forEach(c => {
+            const btn = document.createElement("button");
+            btn.className = "choice-btn";
+            btn.innerText = c.text;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (c.effects) this.applyEffects(c.effects);
+                this.loadNode(c.next);
+            };
+            container.appendChild(btn);
+        });
+    },
+
+    applyEffects(effects) {
+        for (let key in effects) {
+            let val = effects[key];
+            if (typeof val === "string" && val.startsWith("+")) {
+                this.state[key] = (this.state[key] || 0) + Number(val.slice(1));
+            } else {
+                this.state[key] = val;
+            }
+        }
+    }
+};
+
+game.init();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "assets": {
+    "music": { "theme": "audio/music.mp3" },
+    "audio": { "hello_voice": "audio/hello.mp3" }
+  },
+  "nodes": {
+    "start": {
+      "steps": [
+        { "type": "media", "music": "theme" },
+        { "type": "text", "speaker": "Hero", "content": "Hello world!", "audio": "hello_voice" }
+      ]
+    }
+  }
+}

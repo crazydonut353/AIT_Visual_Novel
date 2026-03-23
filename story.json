@@ -1,0 +1,84 @@
+{
+  "start": "intro",
+
+  "assets": {
+    "backgrounds": {
+      "room": "assets/bg/room.webp"
+    },
+    "sprites": {
+      "alice_neutral": "assets/chars/alice_n.webp"
+    },
+    "music": {
+      "calm": "assets/audio/calm.mp3"
+    }
+  },
+
+  "state": {
+    "relationship_alice": 0
+  },
+
+  "nodes": {
+    "intro": {
+      "steps": [
+        {
+          "type": "media",
+          "background": "room",
+          "music": "calm",
+          "characters": {
+            "alice": {
+              "sprite": "alice_neutral",
+              "position": "center"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "content": "Your eyes slowly open."
+        },
+        {
+          "type": "text",
+          "speaker": "Alice",
+          "content": "Oh good, you're alive!"
+        },
+        {
+          "type": "text",
+          "speaker": "Alice",
+          "content": "I was beginning to believe that you were dead!"
+        },
+        {
+          "type": "choice",
+          "choices": [
+            { "text": "Where am I?", "next": "ask_location" },
+            {
+              "text": "Why did you help me?",
+              "next": "ask_motive",
+              "effects": { "relationship_alice": "+1" }
+            }
+          ]
+        }
+      ]
+    },
+
+    "ask_location": {
+      "steps": [
+        {
+          "type": "text",
+          "speaker": "Alice",
+          "content": "You're in my house..?"
+        },
+        { "type": "end" }
+      ]
+    },
+
+    "ask_motive": {
+      "steps": [
+        {
+          "type": "text",
+          "speaker": "Alice",
+          "content": "I couldn't just leave you there..."
+        },
+        { "type": "end" }
+      ]
+    }
+  }
+}
