@@ -43,14 +43,14 @@
         {
           "type": "text",
           "speaker": "Alice",
-          "content": "I was beginning to believe that you were dead!"
+          "content": "Mr. H is about to review the notes so.."
         },
         {
           "type": "choice",
           "choices": [
             { "text": "Where am I?", "next": "ask_location" },
             {
-              "text": "Why did you help me?",
+              "text": "Why did you wake me?",
               "next": "ask_motive",
               "effects": { "relationship_alice": "+1" }
             }
@@ -64,7 +64,7 @@
         {
           "type": "text",
           "speaker": "Alice",
-          "content": "You're in my house..?"
+          "content": "Mathematics. Wow I guess you were completely out of it."
         },
         { "type": "end" }
       ]
